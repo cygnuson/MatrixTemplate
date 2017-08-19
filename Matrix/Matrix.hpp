@@ -328,6 +328,19 @@ RowMatrix<_C, _T> Add(const RowMatrix<_C, _T>& m1,
 \param m1 The first matrix.
 \param m2 The second matrix.
 \return The result matrix.*/
+template<std::size_t _C, typename _T>
+RowMatrix<_C, _T> Sub(const RowMatrix<_C, _T>& m1,
+	const RowMatrix<_C, _T>& m2)
+{
+	auto ret = m1;
+	for (std::size_t i = 0; i < _C; ++i)
+		ret[i] -= m2[i];
+	return ret;
+}
+/**Add two matrices together. Must be the same size.
+\param m1 The first matrix.
+\param m2 The second matrix.
+\return The result matrix.*/
 template<std::size_t _R, typename _T>
 ColumnMatrix<_R, _T> Add(const ColumnMatrix<_R, _T>& m1,
 	const ColumnMatrix<_R, _T>& m2)
@@ -415,84 +428,24 @@ void ColumnSwap(RawMatrix<_R, _C, _T>& m, std::size_t c1, std::size_t c2)
 	SetColumn(c2, col1, m);
 }
 
+/**Transpose a matrix.
+\param m The matrix to transpose.
+\return The transposed matrix.*/
+template<std::size_t _R, std::size_t _C, typename _T>
+RawMatrix<_C, _R, _T> Transpose(const RawMatrix<_R, _C, _T>& m)
+{
+	RawMatrix<_C, _R, _T> ret;
+	for (std::size_t i = 0; i < _R; ++i)
+		for (std::size_t j = 0; j < _C; ++j)
+			ret[i][j] = m[j][i];
+	return ret;
+}
+
 }
 ///////////////////////////////////////////////////////////////////////////////END RMAT NS/////////
 ///////////////////////////////////////////////////////////////////////////////END RAW MATRIX//////
 ///////////////////////////////////////////////////////////////////////////////END RAW MATRIX//////
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////ROW////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**Class for easy row operations.*/
-template<std::size_t Columns, typename DataType>
-struct Row
-{
-	/**The type of data.*/
-	using T = DataType;
-	/**shorthand cols*/
-	const static std::size_t _C = Columns;
-	/**self*/
-	using RowSelfT = Row<Columns, T>;
-	/**The data.*/
-	T m_data[Columns];
-
-	/*********************************************************Constructor*/
-
-
-	/***********************************************************Operators*/
-
-	/**Access an element.
-	\param i The index to access.*/
-	T& operator[](std::size_t i)
-	{
-		return m_data[i];
-	}
-	/**Access an element.
-	\param i The index to access.*/
-	const T& operator[](std::size_t i) const
-	{
-		return m_data[i];
-	}
-
-	/**Do row math.
-	\param other The other thing to add to this. Must be thesame size as
-	this object.*/
-	RowSelfT& operator+=(const RowSelfT& other)
-	{
-		for (std::size_t i = 0; i < _C; ++i)
-			m_data[i] += other[i];
-		return *this;
-	}
-	/**Do row math.
-	\param other The other thing to add to this. Must be thesame size as
-	this object.*/
-	RowSelfT& operator-=(const RowSelfT& other)
-	{
-		for (std::size_t i = 0; i < _C; ++i)
-			m_data[i] -= other[i];
-		return *this;
-	}
-	/**Do row math.
-	\param other The other thing to add to this. Must be thesame size as
-	this object.*/
-	RowSelfT& operator*=(const T& other)
-	{
-		for (std::size_t i = 0; i < _C; ++i)
-			m_data[i] *= other;
-		return *this;
-	}
-	/**Do row math.
-	\param other The other thing to add to this. Must be thesame size as
-	this object.*/
-	RowSelfT& operator/=(const T& other)
-	{
-		for (std::size_t i = 0; i < _C; ++i)
-			m_data[i] /= other;
-		return *this;
-	}
-
-};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////MATRIX/////////
@@ -521,25 +474,25 @@ public:
 	\return A pointer to the data.*/
 	T* Begin()
 	{
-		return (T*)m_data;
+		return (T*)&m_data;
 	}
 	/**Get a pointer to the data as type T* .
 	\return A pointer to the data.*/
 	const T* Begin()const
 	{
-		return (T*)m_data;
+		return (const T*)&m_data;
 	}
 	/**Get one past the end pointer to data.
 	\param A one-past-the-end pointer.*/
 	T* End()
 	{
-		return (T*)m_data + _R*_C;
+		return ((T*)&m_data) + _R*_C;
 	}
 	/**Get one past the end pointer to data.
 	\param A one-past-the-end pointer.*/
 	const T* End()const
 	{
-		return (T*)m_data + _R*_C;
+		return ((const T*)&m_data) + _R*_C;
 	}
 
 	/**Augment (attach) a column to the matrix.
@@ -591,11 +544,7 @@ public:
 	\return An std::array with all the data copied to it.*/
 	std::array<T, _R*_C> RawCopy() const
 	{
-		std::array<T, _R*_C> ret;
-		for (std::size_t i = 0; i < _R; ++i)
-			for (std::size_t j = 0; j < _C; ++j)
-				new (ret.data() + (i*_C + j)) T(Get(i, j));
-		return ret;
+		return *rmat::ViewAsArray(m_data);
 	}
 
 	/**Get an column as an array.
@@ -642,9 +591,7 @@ public:
 	\param r2 The second row in the swap.*/
 	void SwapRow(std::size_t r1, std::size_t r2)
 	{
-		cg::Row<_C, T> rs = m_data[r1];
-		m_data[r1] = m_data[r2];
-		m_data[r2] = rs;
+		rmat::RowSwap(m_data, r1, r2);
 	}
 
 	/**Swap two columns.
@@ -652,12 +599,7 @@ public:
 	\param c2 The second in the set.*/
 	void SwapColumn(std::size_t c1, std::size_t c2)
 	{
-		for (std::size_t i = 0; i < _R; ++i)
-		{
-			T t = Get(i, c1);
-			Set(i, c1, Get(i, c2));
-			Set(i, c2, t);
-		}
+		rmat::ColumnSwap(m_data, c1, c2);
 	}
 
 	/**Scale a row.
@@ -665,7 +607,7 @@ public:
 	\param s The scalar.*/
 	void ScaleRow(std::size_t r, const T& s)
 	{
-		m_data[r] *= (s);
+		rmat::Scale(m_data[r], s);
 	}
 	/**Scale a column.
 	\param c The column.
@@ -682,12 +624,7 @@ public:
 	\param r2 The row that is the destination.*/
 	void ComplexRowOp(const T& s1, std::size_t r1, const T& s2, std::size_t r2)
 	{
-		auto row = Row(r1);
-		row *= s1;
-		auto row2 = Row(r2);
-		row2 *= s2;
-		row2 += row;
-		SetRow(r2, row2);
+		rmat::RowOp(m_data, r1, s1, r2, s2);
 	}
 	/**Do a complex col operation. [s1*c1 + s2*c2 --> c2]
 	\param s1 The value for which to scale the argument col.
@@ -697,42 +634,14 @@ public:
 	void ComplexColumnOp(const T& s1, std::size_t c1, const T& s2,
 		std::size_t c2)
 	{
-		auto col = Column(c1);
-		col *= s1;
-		auto col2 = Column(c2);
-		col2 *= s2;
-		col2 += col;
-		SetColumn(c2, col2);
+		rmat::ColumnOp(m_data, c1, s1, c2, s2);
 	}
 
 	/**Print a matrix to a string.
 	\return The matrix as a string.*/
 	std::string ToString() const
 	{
-		std::size_t digitSize = 1;
-		for (std::size_t i = 0; i < _R; ++i)
-			for (std::size_t j = 0; j < _C; ++j)
-			{
-				auto s = StringHelper(m_data[i][j]).size();
-				if (digitSize < s)
-					digitSize = s;
-			}
-		std::stringstream ss;
-		ss << std::string((_C - 1) * (3 + digitSize) + (2 + digitSize), '-')
-			<< std::endl << "|";
-		for (std::size_t i = 0; i < _R; ++i)
-			for (std::size_t j = 0; j < _C; ++j)
-			{
-				if (j == 0 && i != 0)
-					ss << "|" << std::endl << "|";
-				if (j != 0)
-					ss << " , ";
-				ss << std::setfill(' ') << std::setw(digitSize);
-				ss << StringHelper(Get(i, j));
-			}
-		ss << "|" << std::endl
-			<< std::string((_C - 1) * (3 + digitSize) + (2 + digitSize), '-');
-		return ss.str();
+		return rmat::ToString(m_data);
 	}
 
 	/**Fill a row with a value.  Will fill with assignment (copy or move)
@@ -849,9 +758,7 @@ public:
 	TransSelfT Transpose() const
 	{
 		TransSelfT ret;
-		for (std::size_t i = 0; i < _R; ++i)
-			for (std::size_t j = 0; j < _C; ++j)
-				ret.Set(j, i, Get(i, j));
+		ret.m_data = rmat::Transpose(m_data);
 		return ret;
 	}
 
@@ -936,7 +843,7 @@ public:
 	SelfT& operator+=(const SelfT& other)
 	{
 		for (std::size_t i = 0; i < _R; ++i)
-			m_data[i] += other.m_data[i];
+			m_data[i] = rmat::Add(m_data[i], other.m_data[i]);
 		return *this;
 	}
 	/**Do some matrix math.
@@ -946,7 +853,8 @@ public:
 	SelfT& operator-=(const SelfT& other)
 	{
 		for (std::size_t i = 0; i < _R; ++i)
-			m_data[i] -= other.m_data[i];
+			m_data[i] = rmat::Sub<Columns,DataType>
+			(m_data[i], other.m_data[i]);
 		return *this;
 	}
 	/**Do some matrix math.
@@ -956,7 +864,7 @@ public:
 	SelfT& operator*=(const T& other)
 	{
 		for (std::size_t i = 0; i < _R; ++i)
-			m_data[i] *= other;
+			rmat::Scale(m_data[i], other);
 		return *this;
 	}
 	/**Do some matrix math.
@@ -966,7 +874,7 @@ public:
 	SelfT& operator/=(const T& other)
 	{
 		for (std::size_t i = 0; i < _R; ++i)
-			m_data[i] /= other;
+			cg::rmat::Scale(m_data[i], 1 / other);
 		return *this;
 	}
 	/**Do some matrix math.
@@ -991,21 +899,34 @@ public:
 	/**Get an element.
 	\param r The row to get.
 	\return A reference to the Row.*/
-	cg::Row<_C, T>& operator[](std::size_t r)
+	cg::rmat::RowMatrix<Columns, DataType>&
+		operator[](std::size_t r)
 	{
-		return m_data[r];
+		return (cg::rmat::RowMatrix<Columns, DataType>&) m_data[r];
 	}
 	/**Get an element.
 	\param r The row to get.
 	\return A reference to the Row.*/
-	const cg::Row<_C, T>& operator[](std::size_t r) const
+	const cg::rmat::RowMatrix<Columns,DataType>& 
+		operator[](std::size_t r) const
 	{
-		return m_data[r];
+		return (const cg::rmat::RowMatrix<Columns, DataType>&) m_data[r];
+	}
+	/**Get the negative.
+	\return A copy of the matrix as an additive inverse of this matrix.*/
+	Matrix<_R, _C, T> operator-() const
+	{
+		SelfT ret;
+		ret.m_data = m_data;
+		rmat::Scale<_R,_C,T>(ret.m_data, -1);
+		return ret;
 	}
 
 protected:
+	template<std::size_t a, std::size_t b, typename T>
+	friend class Matrix;
 	/**The arrays.*/
-	cg::Row<_C, T> m_data[_R];
+	cg::rmat::RawMatrix<Rows, Columns, DataType> m_data;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1044,7 +965,7 @@ public:
 	static Vector2 Create(const cg::Matrix<2, 1, T>& mat)
 	{
 		Vector2<T> v;
-		std::memcpy(v.m_data, mat.Begin(), 2 * sizeof(T));
+		std::memcpy(&v.m_data, mat.Begin(), 2 * sizeof(T));
 		return v;
 	}
 
@@ -1054,7 +975,7 @@ public:
 	\param mat The matrix.*/
 	void operator=(const cg::Matrix<3, 1, T>& mat)
 	{
-		std::memcpy(m_data, mat.Begin(), 3 * sizeof(T));
+		std::memcpy(&m_data, mat.Begin(), 3 * sizeof(T));
 	}
 	/***************************************************************Utilities*/
 
@@ -1131,7 +1052,7 @@ public:
 	static Vector3 Create(const cg::Matrix<3, 1, T>& mat)
 	{
 		Vector3<T> v;
-		std::memcpy(v.m_data, mat.Begin(), 3 * sizeof(T));
+		std::memcpy(&v.m_data, mat.Begin(), 3 * sizeof(T));
 		return v;
 	}
 
@@ -1141,7 +1062,7 @@ public:
 	\param mat The matrix.*/
 	void operator=(const cg::Matrix<3, 1, T>& mat)
 	{
-		std::memcpy(m_data, mat.Begin(), 3 * sizeof(T));
+		std::memcpy(&m_data, mat.Begin(), 3 * sizeof(T));
 	}
 
 	/***************************************************************Utilities*/
@@ -1236,7 +1157,7 @@ public:
 	static Vector4 Create(const cg::Matrix<4, 1, T>& mat)
 	{
 		Vector4<T> v;
-		std::memcpy(v.m_data, mat.Begin(), 4 * sizeof(T));
+		std::memcpy(&v.m_data, mat.Begin(), 4 * sizeof(T));
 		return v;
 	}
 
@@ -1371,7 +1292,7 @@ public:
 	\param mat The matrix.*/
 	void operator=(const cg::Matrix<4, 1, T>& mat)
 	{
-		std::memcpy(m_data, mat.Begin(), 4 * sizeof(T));
+		std::memcpy(&m_data, mat.Begin(), 4 * sizeof(T));
 	}
 
 	/***************************************************************Utilities*/
