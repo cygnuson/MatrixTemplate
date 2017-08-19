@@ -1465,6 +1465,18 @@ public:
 	SelfT& YawR(const T& amt) {
 		return RotAboutZR(amt);
 	}
+	/**Get this vector crossed with another. W will stay as this vectors W val.
+	\param v The other vector.
+	\return The result of this CROSS v*/
+	SelfT Cross(const SelfT& v) const
+	{
+		return SelfT::Create(
+			/*X*/Y()*v.Z() - Z()*v.Y(),
+			/*Y*/Z()*v.X() - X()*v.Z(),
+			/*Z*/X()*v.Y() - Y()*v.X(),
+			/*W*/W()
+		);
+	}
 private:
 
 };
