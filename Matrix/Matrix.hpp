@@ -21,9 +21,10 @@ along with _PROJECT_NAME_.  If not, see <http://www.gnu.org/licenses/>.
 #pragma once
 
 #include <cstddef>
+#include <cstring>
+#include <cmath>
 #include <utility>
 #include <string>
-#include <exception>
 #include <sstream>
 #include <array>
 #include <memory>
@@ -65,34 +66,6 @@ using Vector3 = RawVec<3, DataType>;
 
 template<typename DataType>
 using Vector4 = RawVec<4, DataType>;
-
-//////////////////////////////////////////////////////////////////////////////////RAW MATRIX///////
-///////////////////////////////////////////////////////////////////////////////Creations///////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**Create a raw matrix.
-\param nums A std::array of numbers, which will be copied. EAch _R numbers will
-be a row.
-\return The raw matrix.*/
-template<std::size_t _R, std::size_t _C, typename _T>
-RawMatrix<_R, _C, _T> Create(std::array<_T, _R*_C>&& nums)
-{
-	RawMatrix<_R, _C, _T> ret;
-	auto& maskRet = *ViewAsArray(ret);
-	maskRet = std::move(nums);
-	return ret;
-}
-/**Create a raw matrix.
-\param nums A std::array of numbers, which will be copied. EAch _R numbers will
-be a row.
-\return The raw matrix.*/
-template<std::size_t _R, std::size_t _C, typename _T>
-RawMatrix<_R, _C, _T> Create(const std::array<_T, _R*_C>& nums)
-{
-	RawMatrix<_R, _C, _T> ret;
-	std::memcpy(ret.data(), nums.data(), _R*_C * sizeof(_T));
-	return ret;
-}
 
 //////////////////////////////////////////////////////////////////////////////////RAW MATRIX///////
 ///////////////////////////////////////////////////////////////////////////////Conversions/////////
@@ -140,6 +113,34 @@ ViewAsArray(const RawMatrix<Rows, Columns, DataType>& m)
 {
 	return ((const std::array<DataType, Rows*Columns>*)&m);
 }
+//////////////////////////////////////////////////////////////////////////////////RAW MATRIX///////
+///////////////////////////////////////////////////////////////////////////////Creations///////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**Create a raw matrix.
+\param nums A std::array of numbers, which will be copied. EAch _R numbers will
+be a row.
+\return The raw matrix.*/
+template<std::size_t _R, std::size_t _C, typename _T>
+RawMatrix<_R, _C, _T> Create(std::array<_T, _R*_C>&& nums)
+{
+	RawMatrix<_R, _C, _T> ret;
+	auto& maskRet = *rmat::ViewAsArray(ret);
+	maskRet = std::move(nums);
+	return ret;
+}
+/**Create a raw matrix.
+\param nums A std::array of numbers, which will be copied. EAch _R numbers will
+be a row.
+\return The raw matrix.*/
+template<std::size_t _R, std::size_t _C, typename _T>
+RawMatrix<_R, _C, _T> Create(const std::array<_T, _R*_C>& nums)
+{
+	RawMatrix<_R, _C, _T> ret;
+	std::memcpy(ret.data(), nums.data(), _R*_C * sizeof(_T));
+	return ret;
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////RAW MATRIX///////
 ///////////////////////////////////////////////////////////////////////////////Accessors///////////
@@ -215,7 +216,7 @@ void SetColumn(std::size_t i, const ColumnMatrix<_R, _T>& c,
 \param i The index of `m` to set.
 \param m The matrix to alter.*/
 template<std::size_t _R, std::size_t _C, typename _T>
-void SetRow(const RowMatrix<_R, _T>& r, RawMatrix<_R, _C, _T>& m)
+void SetRow(const RowMatrix<_R, _T>& r, RawMatrix<_R, _C, _T>& m, std::size_t i)
 {
 	m[i] = r;
 }
@@ -231,7 +232,7 @@ void SetRow(const RowMatrix<_R, _T>& r, RawMatrix<_R, _C, _T>& m)
 template<std::size_t S, typename T>
 T Mul(const RowMatrix<S, T>& row, const ColumnMatrix<S, T>& colp)
 {
-	auto& col = *ViewAsArray<S, 1, T>(colp);
+	auto& col = *rmat::ViewAsArray<S, 1, T>(colp);
 	T result = 0;
 	for (std::size_t i = 0; i < S; ++i)
 	{
@@ -261,7 +262,7 @@ RawMatrix<_Rw, _Cl2, _T> Mul(const RawMatrix<_Rw, _Cl, _T>& lhs,
 template<std::size_t _R, std::size_t _C, typename _T>
 void Scale(RawMatrix<_R, _C, _T>& m, const _T& s)
 {
-	auto& retV = *ViewAsArray(m);
+	auto& retV = *rmat::ViewAsArray(m);
 	for (_T& t : retV)
 		t *= s;
 }
@@ -280,7 +281,7 @@ void Scale(RowMatrix<_C, _T>& m, const _T& s)
 template<std::size_t _R, typename _T>
 void Scale(ColumnMatrix<_R, _T>& m, const _T& s)
 {
-	auto& ret = *ViewAsArray(m);
+	auto& ret = *rmat::ViewAsArray(m);
 	for (_T& t : ret)
 		t *= s;
 }
@@ -305,8 +306,8 @@ RawMatrix<_R, _C, _T> Add(const RawMatrix<_R, _C, _T>& m1,
 	const RawMatrix<_R, _C, _T>& m2)
 {
 	auto ret = m1;
-	auto& l1 = *ViewAsArray(ret);
-	auto& l2 = *ViewAsArray(m2);
+	auto& l1 = *rmat::ViewAsArray(ret);
+	auto& l2 = *rmat::ViewAsArray(m2);
 	for (std::size_t i = 0; i < _R*_C; ++i)
 		l1[i] += l2[i];
 	return ret;
@@ -346,8 +347,8 @@ ColumnMatrix<_R, _T> Add(const ColumnMatrix<_R, _T>& m1,
 	const ColumnMatrix<_R, _T>& m2)
 {
 	auto ret = m1;
-	auto& retA = *ViewAsArray(ret);
-	auto& a2 = *ViewAsArray(m2);
+	auto& retA = *rmat::ViewAsArray(ret);
+	auto& a2 = *rmat::ViewAsArray(m2);
 	for (std::size_t i = 0; i < _R; ++i)
 		retA[i] += a2[i];
 	return ret;
@@ -361,8 +362,8 @@ RawMatrix<_R, _C, _T> Sub(const RawMatrix<_R, _C, _T>& m1,
 	const RawMatrix<_R, _C, _T>& m2)
 {
 	auto ret = m1;
-	auto& l1 = *ViewAsArray(ret);
-	auto& l2 = *ViewAsArray(m2);
+	auto& l1 = *rmat::ViewAsArray(ret);
+	auto& l2 = *rmat::ViewAsArray(m2);
 	for (std::size_t i = 0; i < _R*_C; ++i)
 		l1[i] -= l2[i];
 	return ret;
@@ -438,6 +439,15 @@ RawMatrix<_C, _R, _T> Transpose(const RawMatrix<_R, _C, _T>& m)
 	for (std::size_t i = 0; i < _R; ++i)
 		for (std::size_t j = 0; j < _C; ++j)
 			ret[i][j] = m[j][i];
+	return ret;
+}
+
+/**Get a zero matrix.
+\return A matrix will all zero.*/
+template<std::size_t _R, std::size_t _C, typename _T>
+RawMatrix<_C, _R, _T> ZeroMatrix()
+{
+	RawMatrix<_C, _R, _T> ret = {};
 	return ret;
 }
 
@@ -975,7 +985,8 @@ public:
 	\param mat The matrix.*/
 	void operator=(const cg::Matrix<3, 1, T>& mat)
 	{
-		std::memcpy(&m_data, mat.Begin(), 3 * sizeof(T));
+		std::memcpy(&this->m_data, 
+            mat.Begin(), 3 * sizeof(T));
 	}
 	/***************************************************************Utilities*/
 
@@ -995,13 +1006,13 @@ public:
 	\return The X value as a const reference.*/
 	const T& X() const
 	{
-		return Get(0, 0);
+		return Matrix<2, 1, DataType>::Get(0, 0);
 	}
 	/**Get the X value.
 	\return The X value as a const reference.*/
 	const T& Y() const
 	{
-		return Get(1, 0);
+		return Matrix<2, 1, DataType>::Get(1, 0);
 	}
 	/**Set the values.
 	\param x The x value.
@@ -1062,7 +1073,7 @@ public:
 	\param mat The matrix.*/
 	void operator=(const cg::Matrix<3, 1, T>& mat)
 	{
-		std::memcpy(&m_data, mat.Begin(), 3 * sizeof(T));
+		std::memcpy(&this->m_data, mat.Begin(), 3 * sizeof(T));
 	}
 
 	/***************************************************************Utilities*/
@@ -1089,19 +1100,19 @@ public:
 	\return The X value as a const reference.*/
 	const T& X() const
 	{
-		return Get(0, 0);
+		return Matrix<3, 1, DataType>::Get(0, 0);
 	}
 	/**Get the X value.
 	\return The X value as a const reference.*/
 	const T& Y() const
 	{
-		return Get(1, 0);
+		return Matrix<3, 1, DataType>::Get(1, 0);
 	}
 	/**Get the Z value.
 	\return The Z value as a const reference.*/
 	const T& Z() const
 	{
-		return Get(2, 0);
+		return Matrix<3, 1, DataType>::Get(2, 0);
 	}
 	/**Set the values.
 	\param x The x value.
@@ -1292,7 +1303,7 @@ public:
 	\param mat The matrix.*/
 	void operator=(const cg::Matrix<4, 1, T>& mat)
 	{
-		std::memcpy(&m_data, mat.Begin(), 4 * sizeof(T));
+		std::memcpy(&this->m_data, mat.Begin(), 4 * sizeof(T));
 	}
 
 	/***************************************************************Utilities*/
@@ -1325,25 +1336,25 @@ public:
 	\return The X value as a const reference.*/
 	const T& X() const
 	{
-		return Get(0, 0);
+		return Matrix<4, 1, DataType>::Get(0, 0);
 	}
 	/**Get the X value.
 	\return The X value as a const reference.*/
 	const T& Y() const
 	{
-		return Get(1, 0);
+		return Matrix<4, 1, DataType>::Get(1, 0);
 	}
 	/**Get the Z value.
 	\return The Z value as a const reference.*/
 	const T& Z() const
 	{
-		return Get(2, 0);
+		return Matrix<4, 1, DataType>::Get(2, 0);
 	}
 	/**Get the W value.
 	\return The W value as a const reference.*/
 	const T& W() const
 	{
-		return Get(3, 0);
+		return Matrix<4, 1, DataType>::Get(3, 0);
 	}
 	/**Set the values.
 	\param x The x value.
@@ -1510,10 +1521,10 @@ public:
 		const T& w)
 	{
 		SphericalVector<T> v;
-		v.R((x));
-		v.Th((y));
-		v.P((z));
-		v.W((w));
+		v.R((Matrix<2, 1, DataType>::x));
+		v.Th((Matrix<2, 1, DataType>::y));
+		v.P((Matrix<2, 1, DataType>::z));
+		v.W((Matrix<2, 1, DataType>::w));
 		return v;
 	}
 
@@ -1524,37 +1535,37 @@ public:
 	\param v The value to set.*/
 	void R(const T& v)
 	{
-		Set(0, 0, v);
+		Matrix<2, 1, DataType>::Set(0, 0, v);
 	}
 	/**Get the RHO value.
 	\return The RHO value as a const reference.*/
 	const T& R() const
 	{
-		return Get(0, 0);
+		return Matrix<2, 1, DataType>::Get(0, 0);
 	}
 	/**Set the THETA value.
 	\param v The value to set.*/
 	void Th(const T& v)
 	{
-		Set(1, 0, v);
+		Matrix<2, 1, DataType>::Set(1, 0, v);
 	}
 	/**Get the THETA value.
 	\return The THETA value as a const reference.*/
 	const T& Th() const
 	{
-		return Get(1, 0);
+		return Matrix<2, 1, DataType>::Get(1, 0);
 	}
 	/**Set the PHI value.
 	\param v The value to set.*/
 	void P(const T& v)
 	{
-		Set(2, 0, v);
+		Matrix<2, 1, DataType>::Set(2, 0, v);
 	}
 	/**Get the PHI value.
 	\return The PHI value as a const reference.*/
 	const T& P() const
 	{
-		return Get(2, 0);
+		return Matrix<2, 1, DataType>::Get(2, 0);
 	}
 	/**Set the W value.
 	\param args The args for which to construct W.*/
@@ -1566,7 +1577,7 @@ public:
 	\return The W value as a const reference.*/
 	const T& W() const
 	{
-		return Get(3, 0);
+		return Matrix<2, 1, DataType>::Get(3, 0);
 	}
 private:
 
@@ -1624,7 +1635,7 @@ Matrix<S1, S3, T> operator*(const Matrix<S1, S2, T>& lhs,
 template<typename T>
 T operator*(const cg::Vector2<T>& v1, const cg::Vector2<T>& v2)
 {
-	returnv2.Transpose()  * v1;
+	return v2.Transpose()  * v1;
 }
 /**Do dot product on two same size vectors.
 \param v1 The first vector.
@@ -1653,9 +1664,9 @@ using Matrix3 = Matrix<3, 3, T>;
 template<typename T>
 using Matrix2 = Matrix<2, 2, T>;
 
-template class Vector2<int>;
-template class Vector3<int>;
-template class Vector4<int>;
+template class Vector2<float>;
+template class Vector3<float>;
+template class Vector4<float>;
 template class Matrix<10, 10, int>;
 template class Matrix<10, 10, float>;
 
